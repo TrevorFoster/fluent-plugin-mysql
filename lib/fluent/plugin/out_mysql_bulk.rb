@@ -26,9 +26,18 @@ DESC
                   :desc => "Key names which store data as json"
     config_param :table, :string,
                  :desc => "Bulk insert table."
+    
+    config_param :aggregate_data, :bool, default: false,
+                 :desc => "Aggregate data enable."
+    config_param :aggregate_data_key, :string, default: nil,
+                 :desc => "Comma separated list of columns to be used as aggregate key"
 
     config_param :on_duplicate_key_update, :bool, default: false,
                  :desc => "On duplicate key update enable."
+    config_param :on_duplicate_key_operations, :array, default: nil,
+                 :desc => "An array of [column,update_operation] where update_operation is the desired update operation"
+    config_param :on_duplicate_increment_keys, :string, default: nil,
+                 :desc => "On duplicate key increment column, comma separator."
     config_param :on_duplicate_update_keys, :string, default: nil,
                  :desc => "On duplicate key update column, comma separator."
 
@@ -51,23 +60,51 @@ DESC
         fail Fluent::ConfigError, 'column_names MUST specified, but missing'
       end
 
-      if @on_duplicate_key_update
-        if @on_duplicate_update_keys.nil?
-          fail Fluent::ConfigError, 'on_duplicate_key_update = true , on_duplicate_update_keys nil!'
-        end
-        @on_duplicate_update_keys = @on_duplicate_update_keys.split(',')
-
-        @on_duplicate_key_update_sql = ' ON DUPLICATE KEY UPDATE '
-        updates = []
-        @on_duplicate_update_keys.each do |update_column|
-          updates << "#{update_column} = VALUES(#{update_column})"
-        end
-        @on_duplicate_key_update_sql += updates.join(',')
-      end
-
       @column_names = @column_names.split(',').collect(&:strip)
       @key_names = @key_names.nil? ? @column_names : @key_names.split(',').collect(&:strip)
       @json_key_names = @json_key_names.split(',') if @json_key_names
+
+      if @on_duplicate_key_update
+        if @on_duplicate_key_operations.nil?
+          fail Fluent::ConfigError, 'on_duplicate_key_update = true , on_duplicate_key_operations nil!'
+        end
+
+        @on_duplicate_key_update_sql = ' ON DUPLICATE KEY UPDATE '
+
+        @on_duplicate_key_operation_indexes = {}
+        valid_operations = ["+", "-", "/", "*", "%", "="]
+
+        operation_statements = []
+        @on_duplicate_key_operations.each do |column_name, operation|
+          column_index = column_names.index(column_name)
+          next if column_index.nil?
+
+          if !valid_operations.include?(operation)
+            fail Fluent::ConfigError, "invalid duplicate key operation supplied for #{column_name}"
+          end
+
+          @on_duplicate_key_operation_indexes[column_index] = operation
+
+          operation_statements << "#{column_name} = #{column_name} #{operation} VALUES(#{column_name})"
+        end
+
+        @on_duplicate_key_update_sql += operation_statements.join(',')
+      end
+      
+      if @aggregate_data
+        if @aggregate_data_key.nil?
+          fail Fluent::ConfigError, 'aggregate_data = true , aggregate_data_key nil!'
+        end
+
+        @update_column_indexes ||= {}
+        @increment_column_indexes ||= {}
+
+        @aggregate_column_indexes = @aggregate_data_key.split(",").collect do |column|
+          column_index = column_names.index(column.strip)
+          
+          column_index if !column_index.nil?
+        end
+      end
     end
 
     def start
@@ -107,11 +144,15 @@ DESC
 
     def write(chunk)
       @handler = client
-      values = []
+
       values_template = "(#{ @column_names.map { |key| '?' }.join(',') })"
-      chunk.msgpack_each do |tag, time, data|
-        values << Mysql2::Client.pseudo_bind(values_template, data)
+
+      if @unique_indexes.nil?
+        values = bind_values(chunk, values_template)
+      else
+        values = bind_values_aggregate(chunk, values_template)
       end
+
       sql = "INSERT INTO #{@table} (#{@column_names.join(',')}) VALUES #{values.join(',')}"
       sql += @on_duplicate_key_update_sql if @on_duplicate_key_update
 
@@ -144,5 +185,38 @@ DESC
         values
       end
     end
+
+    def bind_values(chunk, values_template)
+      values = []
+
+      chunk.msgpack_each do |tag, time, data|
+        values << Mysql2::Client.pseudo_bind(values_template, data)
+      end
+
+      return values
+    end
+
+    def bind_values_aggregate(chunk, values_template)
+      chunk_aggregate = {}
+
+      chunk.msgpack_each do |tag, time, data|
+          aggregate_key = aggregate_column_indexes.collect {|column_index| data[column_index]}.join("|")
+
+          if chunk_aggregate.key?(aggregate_key)
+            aggregate_data = chunk_aggregate[aggregate_key]
+
+            data.each_with_index.collect do |item, index|
+              if @on_duplicate_key_operation_indexes.key?(index)
+                aggregate_data[index] = aggregate_data[index].send(@on_duplicate_key_operation_indexes[index], item)
+              end
+            end
+          else
+            chunk_aggregate[aggregate_key] = data
+          end
+      end
+
+      return chunk_aggregate.collect {|key, values| Mysql2::Client.pseudo_bind(values_template, values) }
+    end
+
   end
 end
