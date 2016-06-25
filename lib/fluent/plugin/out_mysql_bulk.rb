@@ -29,17 +29,13 @@ DESC
     
     config_param :aggregate_data, :bool, default: false,
                  :desc => "Aggregate data enable."
-    config_param :aggregate_data_key, :string, default: nil,
+    config_param :aggregate_key, :string, default: nil,
                  :desc => "Comma separated list of columns to be used as aggregate key"
 
     config_param :on_duplicate_key_update, :bool, default: false,
                  :desc => "On duplicate key update enable."
     config_param :on_duplicate_key_operations, :array, default: nil,
                  :desc => "An array of [column,update_operation] where update_operation is the desired update operation"
-    config_param :on_duplicate_increment_keys, :string, default: nil,
-                 :desc => "On duplicate key increment column, comma separator."
-    config_param :on_duplicate_update_keys, :string, default: nil,
-                 :desc => "On duplicate key update column, comma separator."
 
     attr_accessor :handler
 
@@ -95,9 +91,6 @@ DESC
         if @aggregate_data_key.nil?
           fail Fluent::ConfigError, 'aggregate_data = true , aggregate_data_key nil!'
         end
-
-        @update_column_indexes ||= {}
-        @increment_column_indexes ||= {}
 
         @aggregate_column_indexes = @aggregate_data_key.split(",").collect do |column|
           column_index = column_names.index(column.strip)
