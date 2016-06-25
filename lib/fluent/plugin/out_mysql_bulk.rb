@@ -67,21 +67,21 @@ DESC
 
         @on_duplicate_key_update_sql = ' ON DUPLICATE KEY UPDATE '
 
-        @on_duplicate_key_operation_indexes = {}
-        valid_operations = ["+", "-", "/", "*", "%", "="]
+        @on_duplicate_key_indexes = {}
+        valid_operations = %w(+ - / * % =)
 
         operation_statements = []
         @on_duplicate_key_operations.each do |operations_data|
           column_name, operation = operations_data.split(",").collect(&:strip)
 
-          column_index = column_names.index(column_name)
+          column_index = @column_names.index(column_name)
           next if column_index.nil?
 
-          if !valid_operations.include?(operation)
+          unless valid_operations.include?(operation)
             fail Fluent::ConfigError, "invalid duplicate key operation supplied for #{column_name}"
           end
 
-          @on_duplicate_key_operation_indexes[column_index] = operation
+          @on_duplicate_key_indexes[column_index] = operation
 
           operation_statements << "#{column_name} = #{column_name} #{operation} VALUES(#{column_name})"
         end
@@ -95,9 +95,9 @@ DESC
         end
 
         @aggregate_column_indexes = @aggregate_key_list.split(",").collect do |column|
-          column_index = column_names.index(column.strip)
-          
-          column_index if !column_index.nil?
+          column_index = @column_names.index(column.strip)
+
+          column_index unless column_index.nil?
         end
       end
     end
@@ -188,7 +188,7 @@ DESC
         values << Mysql2::Client.pseudo_bind(values_template, data)
       end
 
-      return values
+      values
     end
 
     def bind_values_aggregate(chunk, values_template)
@@ -201,8 +201,8 @@ DESC
             aggregate_data = chunk_aggregate[aggregate_key]
 
             data.each_with_index.collect do |item, index|
-              if @on_duplicate_key_operation_indexes.key?(index)
-                aggregate_data[index] = aggregate_data[index].send(@on_duplicate_key_operation_indexes[index], item)
+              if @on_duplicate_key_indexes.key?(index)
+                aggregate_data[index] = aggregate_data[index].send(@on_duplicate_key_indexes[index], item)
               end
             end
           else
@@ -210,7 +210,7 @@ DESC
           end
       end
 
-      return chunk_aggregate.collect {|key, values| Mysql2::Client.pseudo_bind(values_template, values) }
+      chunk_aggregate.collect {|_, values| Mysql2::Client.pseudo_bind(values_template, values) }
     end
 
   end
