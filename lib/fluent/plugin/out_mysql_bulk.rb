@@ -29,13 +29,13 @@ DESC
     
     config_param :aggregate_data, :bool, default: false,
                  :desc => "Aggregate data enable."
-    config_param :aggregate_key, :string, default: nil,
+    config_param :aggregate_key_list, :string, default: nil,
                  :desc => "Comma separated list of columns to be used as aggregate key"
 
     config_param :on_duplicate_key_update, :bool, default: false,
                  :desc => "On duplicate key update enable."
     config_param :on_duplicate_key_operations, :array, default: nil,
-                 :desc => "An array of [column,update_operation] where update_operation is the desired update operation"
+                 :desc => "An array of 'column,update_operation' where update_operation is the desired update operation"
 
     attr_accessor :handler
 
@@ -71,7 +71,9 @@ DESC
         valid_operations = ["+", "-", "/", "*", "%", "="]
 
         operation_statements = []
-        @on_duplicate_key_operations.each do |column_name, operation|
+        @on_duplicate_key_operations.each do |operations_data|
+          column_name, operation = operations_data.split(",").collect(&:strip)
+
           column_index = column_names.index(column_name)
           next if column_index.nil?
 
@@ -88,11 +90,11 @@ DESC
       end
       
       if @aggregate_data
-        if @aggregate_data_key.nil?
-          fail Fluent::ConfigError, 'aggregate_data = true , aggregate_data_key nil!'
+        if @aggregate_key_list.nil?
+          fail Fluent::ConfigError, 'aggregate_data = true , aggregate_key_list nil!'
         end
 
-        @aggregate_column_indexes = @aggregate_data_key.split(",").collect do |column|
+        @aggregate_column_indexes = @aggregate_key_list.split(",").collect do |column|
           column_index = column_names.index(column.strip)
           
           column_index if !column_index.nil?
