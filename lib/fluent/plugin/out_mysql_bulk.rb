@@ -30,12 +30,12 @@ DESC
     config_param :aggregate_data, :bool, default: false,
                  :desc => "Aggregate data enable."
     config_param :aggregate_key_list, :string, default: nil,
-                 :desc => "Comma separated list of columns to be used as aggregate key"
+                 :desc => "Comma separated list of columns to be used as the aggregation key"
 
     config_param :on_duplicate_key_update, :bool, default: false,
                  :desc => "On duplicate key update enable."
     config_param :on_duplicate_key_operations, :array, default: nil,
-                 :desc => "An array of 'column,update_operation' where update_operation is the desired update operation"
+                 :desc => "An array of 'column,update_operation' where update_operation is the desired update operator"
 
     attr_accessor :handler
 
@@ -72,7 +72,7 @@ DESC
 
         operation_statements = []
         @on_duplicate_key_operations.each do |operations_data|
-          column_name, operation = operations_data.split(",").collect(&:strip)
+          column_name, operation = operations_data.split(',').collect(&:strip)
 
           column_index = @column_names.index(column_name)
           next if column_index.nil?
@@ -94,7 +94,7 @@ DESC
           fail Fluent::ConfigError, 'aggregate_data = true , aggregate_key_list nil!'
         end
 
-        @aggregate_column_indexes = @aggregate_key_list.split(",").collect do |column|
+        @aggregate_column_indexes = @aggregate_key_list.split(',').collect do |column|
           column_index = @column_names.index(column.strip)
 
           column_index unless column_index.nil?
@@ -140,9 +140,9 @@ DESC
     def write(chunk)
       @handler = client
 
-      values_template = "(#{ @column_names.map { |key| '?' }.join(',') })"
+      values_template = "(#{ @column_names.map { |_| '?' }.join(',') })"
 
-      if @unique_indexes.nil?
+      if !@aggregate_data
         values = bind_values(chunk, values_template)
       else
         values = bind_values_aggregate(chunk, values_template)
@@ -195,7 +195,7 @@ DESC
       chunk_aggregate = {}
 
       chunk.msgpack_each do |tag, time, data|
-          aggregate_key = aggregate_column_indexes.collect {|column_index| data[column_index]}.join("|")
+          aggregate_key = data.values_at(*@aggregate_column_indexes).join('|')
 
           if chunk_aggregate.key?(aggregate_key)
             aggregate_data = chunk_aggregate[aggregate_key]
