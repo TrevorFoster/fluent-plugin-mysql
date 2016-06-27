@@ -81,7 +81,7 @@ INSERT INTO users (id,user_name,created_at,updated_at) VALUES (NULL,'toyama','20
   column_names id,user_name,created_at,updated_at
   table users
   on_duplicate_key_update true
-  on_duplicate_key_operations ['user_name,=','updated_at,=']
+  on_duplicate_key_operations ["user_name,=","updated_at,="]
   flush_interval 60s
 </match>
 ```
