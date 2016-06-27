@@ -26,16 +26,16 @@ DESC
                   :desc => "Key names which store data as json"
     config_param :table, :string,
                  :desc => "Bulk insert table."
-    
-    config_param :aggregate_data, :bool, default: false,
-                 :desc => "Aggregate data enable."
-    config_param :aggregate_key_list, :string, default: nil,
-                 :desc => "Comma separated list of columns to be used as the aggregation key"
 
     config_param :on_duplicate_key_update, :bool, default: false,
-                 :desc => "On duplicate key update enable."
+                 :desc => "On duplicate key update enable (true:false)"
     config_param :on_duplicate_key_operations, :array, default: nil,
-                 :desc => "An array of 'column,update_operation' where update_operation is the desired update operator"
+                 :desc => "An array of 'column,operator' where operator is the desired update operator."
+
+    config_param :aggregate_data, :bool, default: false,
+                 :desc => "Aggregate data enable (true:false)"
+    config_param :aggregate_key_list, :string, default: nil,
+                 :desc => "Comma separated list of columns to be used as the aggregation key."
 
     attr_accessor :handler
 

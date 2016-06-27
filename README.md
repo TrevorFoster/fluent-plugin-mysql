@@ -12,17 +12,21 @@ fluent-plugin-mysql-bulk merged this repository.
 
 param|value
 --------|------
-host|database host(default: 127.0.0.1)
-port|database port(default: 3306)
-database|database name(require)
-username|user(require)
-password|password(default: blank)
-column_names|bulk insert column (require)
-key_names|value key names, ${time} is placeholder Time.at(time).strftime("%Y-%m-%d %H:%M:%S") (default : column_names)
+host|Database host(default: 127.0.0.1)
+port|Database port(default: 3306)
+database|Database name(require)
+username|User(require)
+password|Password(default: blank)
+column_names|Bulk insert column (require)
+key_names|Value key names, ${time} is placeholder Time.at(time).strftime("%Y-%m-%d %H:%M:%S") (default : column_names)
 json_key_names|Key names which store data as json, comma separator.
-table|bulk insert table (require)
-on_duplicate_key_update|on duplicate key update enable (true:false)
-on_duplicate_update_keys|on duplicate key update column, comma separator
+table|Bulk insert table (require)
+on_duplicate_key_update|On duplicate key update enable (true:false)
+on_duplicate_key_operations|An array of 'column,operator' where operator is the desired update operator.
+aggregate_data|Data aggregation enable (true: false)
+aggregate_key_list|List of columns to include in the aggregation key
+
+
 
 ## Configuration Example(bulk insert)
 
@@ -77,7 +81,7 @@ INSERT INTO users (id,user_name,created_at,updated_at) VALUES (NULL,'toyama','20
   column_names id,user_name,created_at,updated_at
   table users
   on_duplicate_key_update true
-  on_duplicate_update_keys user_name,updated_at
+  on_duplicate_key_operations ['user_name,=','updated_at,=']
   flush_interval 60s
 </match>
 ```
