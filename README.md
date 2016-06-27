@@ -232,6 +232,47 @@ then `created_at` column is set from time attribute in a fluentd packet with tim
 +-----+-----------+---------------------+
 ```
 
+## Configuration Example(bulk insert, on duplicate operations, data aggregation)
+
+```
+<match mysql.input>
+  @type mysql_bulk
+  host localhost
+  database test_app_development
+  username root
+  password hogehoge
+
+  table users
+  column_names id,user_name,created_at,clicks
+
+  aggregate_data true
+  aggregate_key_list user_name,created_at
+  on_duplicate_key_update true
+  on_duplicate_key_operations ["clicks,+"]
+  
+  flush_interval 10s
+</match>
+```
+
+Assume following input is recieved:
+
+```js
+mysql.input: {"user_name":"toyama","created_at":"2014/01/03 21:35:15","clicks":1,"dummy":"hogehoge"}
+mysql.input: {"user_name":"toyama2","created_at":"2014/01/03 21:35:21","clicks":1,"dummy":"hogehoge"}
+mysql.input: {"user_name":"toyama","clicks":1,"dummy":"hogehoge"}
+mysql.input: {"user_name":"toyama","clicks":1,"dummy":"hogehoge"}
+```
+
+then result becomes as below (indented):
+
+```sql
++-----+-----------+---------------------+---------------------+
+| id  | user_name | created_at          | clicks              |
++-----+-----------+---------------------+---------------------+
+| 1   | toyama    | 2014-01-03 21:35:15 | 3                   |
+| 2   | toyama2   | 2014-01-03 21:35:21 | 1                   |
++-----+-----------+---------------------+---------------------+
+```
 
 ## spec
 
