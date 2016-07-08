@@ -30,7 +30,7 @@ class MysqlBulkOutputTest < Test::Unit::TestCase
         password hogehoge
         table users
         on_duplicate_key_update true
-        on_duplicate_update_keys user_name,updated_at
+        on_duplicate_key_operations ["user_name,=","updated_at,="]
         flush_interval 10s
       ]
     end
@@ -56,7 +56,20 @@ class MysqlBulkOutputTest < Test::Unit::TestCase
         column_names id,user_name,created_at,updated_at
         table users
         on_duplicate_key_update true
-        on_duplicate_update_keys user_name,updated_at
+        on_duplicate_key_operations ["user_name,=","updated_at,="]
+        flush_interval 10s
+      ]
+    end
+
+    assert_raise(Fluent::ConfigError) do
+      d = create_driver %[
+        host localhost
+        username root
+        password hogehoge
+        column_names id,user_name,created_at,updated_at
+        table users
+        on_duplicate_key_update true
+        on_duplicate_key_operations ["user_name","updated_at,"]
         flush_interval 10s
       ]
     end
@@ -73,7 +86,7 @@ class MysqlBulkOutputTest < Test::Unit::TestCase
         column_names id,user_name,created_at,updated_at
         table users
         on_duplicate_key_update true
-        on_duplicate_update_keys user_name,updated_at
+        on_duplicate_key_operations ["user_name,=","updated_at,="]
         flush_interval 10s
       ]
     end
@@ -96,7 +109,7 @@ class MysqlBulkOutputTest < Test::Unit::TestCase
         column_names id,user_name,created_at,updated_at
         table users
         on_duplicate_key_update true
-        on_duplicate_update_keys user_name,updated_at
+        on_duplicate_key_operations ["user_name,=","updated_at,="]
       ]
     end
 
@@ -109,7 +122,7 @@ class MysqlBulkOutputTest < Test::Unit::TestCase
         key_names id,user,created_date,updated_date
         table users
         on_duplicate_key_update true
-        on_duplicate_update_keys user_name,updated_at
+        on_duplicate_key_operations ["user_name,=","updated_at,="]
       ]
     end
 
@@ -124,6 +137,19 @@ class MysqlBulkOutputTest < Test::Unit::TestCase
         table access
       ]
     end
+
+    assert_nothing_raised(Fluent::ConfigError) do
+      d = create_driver %[
+        host localhost
+        username root
+        password hogehoge
+        column_names id,user_name,created_at,updated_at
+        table users
+        on_duplicate_key_update true
+        on_duplicate_key_operations ["user_name,=","updated_at,="]
+        flush_interval 10s
+      ]
+    end
   end
 
   def test_variables
@@ -134,7 +160,7 @@ class MysqlBulkOutputTest < Test::Unit::TestCase
       column_names id,user_name,created_at,updated_at
       table users
       on_duplicate_key_update true
-      on_duplicate_update_keys user_name,updated_at
+      on_duplicate_key_operations ["user_name,=","updated_at,="]
     ]
 
     assert_equal ['id','user_name','created_at','updated_at'], d.instance.key_names

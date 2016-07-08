@@ -74,6 +74,10 @@ DESC
         @on_duplicate_key_operations.each do |operations_data|
           column_name, operation = operations_data.split(',').collect(&:strip)
 
+          if column_name.nil? || operation.nil?
+            fail Fluent::ConfigError, "no update operation supplied for #{operations_data}"
+          end
+
           column_index = @column_names.index(column_name)
           next if column_index.nil?
 
@@ -209,9 +213,7 @@ DESC
             chunk_aggregate[aggregate_key] = data
           end
       end
-
       chunk_aggregate.collect {|_, values| Mysql2::Client.pseudo_bind(values_template, values) }
     end
-
   end
 end
